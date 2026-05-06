@@ -53,3 +53,12 @@ The Feature Implementation Workflow describes the development pipeline: research
    - Resolve any merge conflicts
    - Ensure branch is up to date with target branch
    - Only request review after these checks pass
+
+### AI エージェント実行ルール
+
+AI エージェント（Claude Code 等）がコマンドを実行する際のデッドロック防止ルール：
+
+1. **`curl` は `-sS -m 10` 必須**: プログレスバー抑制とタイムアウト設定
+2. **対話的確認は `-y` で自動承認**: `apt-get install -y`, `rm -f` 等
+3. **長時間コマンドはバックグラウンド化**: `make run ARGS="rt" &` 等
+4. **シェルスクリプト内の全コマンドも準拠すること**

@@ -190,6 +190,14 @@ std::fs::write(&path, &data).map_err(|e| Error::Io(e.to_string()))?;
 ### 関数内での `use` 文の使用禁止
 `use` 文は原則としてファイルのトップレベルに記述する。関数内部での `use` は、名前の衝突回避など明確な意図がある場合のみ許可。
 
+### 環境変数は `main_of_rt.rs` で一元管理
+
+環境変数の直接参照（`std::env::var`）は `main_of_rt.rs` の起動時設定ブロックのみで行う。BL/Handler 層での環境変数直接呼び出しは禁止：
+
+- 新しい設定項目は `.env.example` → `.env` に追加
+- `main_of_rt.rs` の環境変数収集ブロックで読み込み
+- 設定値は `Arc<Config>` 等の引数で各コンポーネントに伝搬
+
 ## References
 
 See skill: `rust-patterns` for comprehensive Rust idioms and patterns.

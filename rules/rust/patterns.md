@@ -251,6 +251,116 @@ async fn apply_ca(
 }
 ```
 
+### REST API Patterns
+
+#### 実装サイクル
+REST API 開発は **Route → Handler → Request → Response → Logic** の順で進める。インターフェースを先に固めることで設計矛盾を早期発見する。
+
+#### Route 登録
+`src/mode/rt/req_map.rs` に集約：
+
+```rust
+fn app_routes() -> OpenApiRouter {
+    OpenApiRouter::new()
+        .routes(routes!(search_usrs))
+        .routes(routes!(create_usr))
+}
+```
+
+- `OpenApiRouter::with_openapi(ApiDoc::openapi())` + `.nest("/v1", ...)` + `split_for_parts()`
+- CRUD 順序: Search → Get → Create → Update → Delete
+- 検索系は Body JSON + POST を基本
+
+#### Handler パターン
+`src/mode/rt/rthandler/[機能名]_handler.rs`。認証・委譲のみ：
+
+```rust
+pub async fn search_usrs(
+    ju: JwtUsr, ids: JwtIDs,
+    Extension(db): Extension<Arc<DbPools>>,
+    Json(req): Json<SearchUsrsReq>,
+) -> Result<impl IntoResponse, ApiError> {
+    ju.allow_roles(&[JwtRole::USR])?;
+    req.validate().map_err(|e| ApiError::from_garde(e))?;
+    let conn = db.get_ro_for_rt()?;
+    rtbl::usrs_bl::search_usrs(conn, &ju, &ids, req).await.map(Json)
+}
+```
+
+- `ju.allow_roles` でロール制限（目標は全エンドポイント USR のみ）
+- 読み取り: `get_ro_for_rt()` / 書き込み: `get_rw_for_rt()`
+- ハンドラーファイルごとに `const TAG` を定義
+
+#### Request パターン
+`src/mode/rt/rtreq/[機能名]_req.rs`。`garde` バリデーション：
+
+```rust
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct SearchUsrsReq {
+    #[schema(example = "山田 太郎")]
+    #[serde(default)]
+    #[garde(custom(length_simple_err(0, 50)))]
+    pub name: String,
+}
+```
+
+- `#[schema(example = ...)]` 必須（Swagger UI 用）
+- `#[serde(default)]` でキー欠如対策、`garde` で 422 エラー化
+- 標準 `garde` 属性の直接使用禁止 → カスタムアダプター経由
+
+#### Response パターン
+`src/mode/rt/rtres/[機能名]_res.rs`。フラット構造＋`From<Model>`：
+
+```rust
+#[derive(Serialize, ToSchema)]
+pub struct SearchUsrsRes { pub usrs: Vec<SearchUsrsResItem> }
+impl From<usrs::Model> for SearchUsrsResItem { /* ... */ }
+```
+
+- エラーは `ApiError`（`ErrorDetail { field, code, message }` のリスト）で統一
+- 成功レスポンスに errors フィールドを含めない
+
+#### Business Logic パターン
+`src/mode/rt/rtbl/[機能名]_bl.rs`。非同期 SeaORM：
+
+```rust
+async fn find_usrs_base(ju: &JwtUsr, ids: &JwtIDs) -> Result<Select<usrs::Entity>, ApiError> {
+    match ju.role() {
+        JwtRole::USR => Ok(usrs::Entity::find()
+            .filter(usrs::Column::ApxId.eq(ids.apx_id))
+            .filter(usrs::Column::VdrId.eq(ids.vdr_id))
+            .filter(usrs::Column::Id.eq(ids.usr_id))),
+    }
+}
+```
+
+- `find_..._base` で権限ベースのクエリ共通化（Search/Get/Update/Delete で再利用）
+- Create/Update/Delete は `conn.transaction()` でラップ
+- `ju.role()` + `match` でロール判定を明示
+
+#### バリデーションアダプター
+`garde` カスタムアダプターは4段階のマクロ生成で追加：
+
+1. **基底ロジック**: 判定用トレイト定義（`rterr.rs`）
+2. **汎用マクロ**: `define_numeric_adapter!` 等（`validators.rs`）
+3. **アダプター実体化**: エラーコード `E0001`〜`E0023` を確定
+4. **リクエスト適用**: `#[garde(custom(numeric_err))]`
+
+エラーコード体系は `src/mode/rt/rterr/` で一元管理する。
+
+#### P2P Clock Sync Middleware
+全 P2P 通信で相互時刻検証を必須化：
+1. リクエストにタイムスタンプ + 署名 + 公開鍵を含める
+2. 受信側はブラックリストチェック後、時刻ズレを検証
+3. 許容範囲超過時は通信拒否、CA へ報告
+4. 応答に受信側タイムスタンプを付与
+
+#### entities/ 直接編集禁止
+`src/entities/` は `make gen-entities` の自動生成ファイルにつき直接編集禁止。スキーマ変更は migration → regenerate の順。
+
+#### ロールポリシー
+全 JWT 認証エンドポイントは `JwtRole::USR` のみ許可を目標とする。BD/APX/VDR ロールは管理機能に限定し、将来的に全廃予定。
+
 ### SeaORM Entity Pattern
 
 エンティティは `src/entities/` に `sea-orm-cli generate entity` で自動生成する：
