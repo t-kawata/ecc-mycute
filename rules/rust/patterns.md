@@ -166,3 +166,160 @@ pub enum ApiResponse<T: serde::Serialize> {
 ## References
 
 See skill: `rust-patterns` for comprehensive patterns including ownership, traits, generics, concurrency, and async.
+
+---
+
+## MYCUTE-Specific Patterns
+
+### Multi-Binary Architecture
+
+MYCUTE は 3 つのバイナリを持つマルチバイナリ構成。`Cargo.toml` の `[[bin]]` 定義に従う：
+
+| Binary | Path | Purpose |
+|--------|------|---------|
+| `mycute` | `src/main.rs` | GUI モード（Tauri）、サーバーモード（ヘッドless）、マイグレーション |
+| `mycute-server-core` | `src/server.rs` | スタンドアロンサーバー本体。GUI 非依存 |
+| `mycute-server` | `src/launcher.rs` | 配布用サーバーバイナリ。core とネイティブライブラリを内包 |
+
+- 共通ロジックは `src/` 直下のモジュールツリーに配置し、各バイナリから参照する
+- `mycute-server`（launcher）は `include_bytes!` で `target/release` の core バイナリを埋め込む。ビルド順序に注意
+
+### Tauri v2 Commands
+
+Tauri コマンドは機能ごとにファイル分割し `src/tauri_cmd/` モジュールに集約する：
+
+```rust
+// src/tauri_cmd/voice.rs
+#[tauri::command]
+pub async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
+    // 実装
+}
+
+// src/tauri_cmd/settings.rs
+#[tauri::command]
+pub async fn get_setting(key: String) -> Result<String, String> {
+    // 実装
+}
+```
+
+- `#[tauri::command]` は async 関数とし、戻り値は `Result<T, String>` またはシリアライズ可能な型
+- フロントエンドからは `invoke('plugin:mycute|command_name')` で呼び出し
+- AppHandle が必要な場合は関数の引数に `app: tauri::AppHandle` を追加
+
+### Axum + utoipa Routing
+
+MYCUTE は utoipa を用いた OpenAPI ドキュメント自動生成と統合したルーティングを行う：
+
+```rust
+use utoipa::OpenApi;
+use utoipa_axum::{router::OpenApiRouter, routes};
+
+#[derive(OpenApi)]
+#[openapi(info(title = "MYCUTE API", version = "1.0.0"))]
+struct ApiDoc;
+
+// utoipa-axum の OpenApiRouter でルートを定義
+let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+    .nest("/v1", app_routes())
+    .split_for_parts();
+
+// axum 標準の Router にフォールバック
+let app = Router::new()
+    .merge(router);
+```
+
+- **API 定義と実装の一体化**: `#[utoipa::path]` アトリビュートでリクエスト/レスポンススキーマをハンドラーに直接記述
+- **`utoipa-axum` の `routes!` マクロ**を使用してハンドラーを登録
+- 全てのハンドラーは `anyhow::Result` またはカスタムエラー型を返す
+- 状態管理は `axum::extract::State` と `Arc` で行う
+
+```rust
+#[utoipa::path(
+    get,
+    path = "/v1/ca/apply",
+    params(MyRequest),
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Bad request"),
+    ),
+)]
+async fn apply_ca(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<MyRequest>,
+) -> Result<Json<MyResponse>, AppError> {
+    // ...
+}
+```
+
+### SeaORM Entity Pattern
+
+エンティティは `src/entities/` に `sea-orm-cli generate entity` で自動生成する：
+
+```rust
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[sea_orm(table_name = "identities")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i32,
+    pub public_key: String,
+    pub name: Option<String>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(has_many = "super::apps::Entity")]
+    Apps,
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+```
+
+- 自動生成後は手動編集せず、スキーマ変更は migration → regenerate の順で行う
+- `#[sea_orm(column_name = "...")]` によるカラム名上書きは避け、DB のカラム名と Rust のフィールド名は snake_case で一致させる
+- UTC タイムスタンプは `crate::impl_utc_timestamp_behavior!` マクロで適用する
+- `with-serde both` フラグ付きで生成し、Serialize + Deserialize を自動導出する
+
+### Migration Workflow
+
+```bash
+# 1. 新しいマイグレーションファイル生成
+make gen-migration NAME=create_users_table
+
+# 2. マイグレーション実行（スキーマ更新）
+make migrate-up
+
+# 3. スキーマからエンティティ再生成
+make gen-entities DRIVER=sqlite  # または mysql/postgres
+```
+
+- **Schema First アプローチ**: マイグレーションファイルを先に書き、その後エンティティを自動生成する
+- マイグレーション記述は `sea_orm_migration::prelude::*` と `schema::*` ヘルパーを使用
+- マイグレーションの順序はディレクトリのタイムスタンプ順（`YYYYMMDDHHMMSS`）
+
+### Ed448-Goldilocks 暗号パターン
+
+署名・検証は `crate::utils::crypto` モジュールの専用関数を介して行う：
+
+```rust
+use crate::utils::crypto::{verify_signature, Ed448Signature};
+
+// 署名検証
+let sig: Ed448Signature = /* from hex */;
+let is_valid = verify_signature(&public_key, &data, &sig)?;
+```
+
+- 公開鍵は 114 文字の Hex 文字列として扱う
+- 生の ed448-goldilocks クレートの API を直接呼ばず、`utils::crypto` のラッパー関数を常に使用する
+- 署名対象データには必ずタイムスタンプと有効期限を含める
+
+### ポート定義
+
+| 定数名 | ポート | 用途 |
+|--------|--------|------|
+| `RT_PORT` | 3910 | REST API (Axum) |
+| `SW_PORT` | 3911 | Static content / proxy |
+| `BIFROST_PORT` | 3912 | LLM Proxy |
+| `ZEROCLAW_PORT` | 3913 | Agent Gateway |
+| `PROXY_PORT` | 58300 | MITM HTTPS proxy |
+
+ポート番号はハードコードせず定数として定義し、必要に応じて環境変数で上書き可能にすること。

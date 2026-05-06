@@ -139,3 +139,49 @@ match order_service.find_by_id(id) {
 
 See skill: `rust-patterns` for unsafe code guidelines and ownership patterns.
 See skill: `security-review` for general security checklists.
+
+---
+
+## MYCUTE Chain of Trust Security Model
+
+MYCUTE はオーナー事務局を起点とする多層署名構造（マトリョーシカ構造）で動作する：
+
+```text
+オーナー秘密鍵 ──署名──→ CA任命証 (CA_PubKey + expire_at)
+                                │
+                                ├──署名──→ 開発者証明書 (Dev_PubKey + expire_at)
+                                │               │
+                                │               ├──署名──→ アプリ (.mycute ファイル)
+                                │               │
+                                │               └──署名──→ tickets (予算証明)
+                                │
+                                └── 自身で署名 ──→ ブラックリスト更新
+```
+
+### 検証ルール
+- **オーナー公開鍵はバイナリにハードコード**: 外部認証局に依存しない自己完結型の信頼起点
+- **有効期限 (expire_at) は署名対象に含まれる**: 改ざんすれば署名検証が即座に失敗する
+- **検証はローカル（オフライン）で完結**: 毎回の検証に外部サーバーへの問い合わせ不要
+- **`Ed448Signature` 型を `utils::crypto` 経由で使用**: 生のed448-goldilocks APIを直接呼ばない
+
+### タイムスタンプ検証プロトコル
+すべてのP2P通信は相互時刻検証を必須とする：
+1. リクエストに送信側のタイムスタンプと CA Base URL を含める
+2. 受信側はブラックリストチェック後、応答に自身のタイムスタンプを付与
+3. 往復の時刻誤差が許容範囲を超える場合は通信を拒否
+
+### ブラックリスト機構
+- **L3 ノードのみが CA へ不正報告可能**: 誰でも告発できるわけではない
+- **数学的証拠 (Proof of Malfeasance) が必要**: 証拠なき通報は逆に通報者が制裁を受ける
+- **削除しても同期で戻る**: ローカルで削除しても CA との次回同期で自動復元される
+- **自己執行**: 自分がブラックリストに載ったことを検知したら自動機能停止
+
+### Singleton Lock (シングルトンロック)
+- 同一マシン上で同時に起動できる MYCUTE インスタンスは 1 つのみ
+- ロックファイル (`~/.mycute/*.lock`) により物理的な排他制御を行う
+- このロックはシビル攻撃対策の要であり、迂回・無効化は禁止
+
+### Unsafe Code 特則
+- 正当な `unsafe` の使用例：ObjC FFI (`objc_msgSend`)、Cocoa フレームワーク呼び出し
+- `// SAFETY:` コメントには **どの不変条件が満たされているか** を具体的に記述
+- macOS プラットフォーム固有のコード（`block`, `objc`, `cocoa` クレート依存）は `#[cfg(target_os = "macos")]` でガードする

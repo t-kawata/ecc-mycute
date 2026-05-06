@@ -26,18 +26,29 @@ The Feature Implementation Workflow describes the development pipeline: research
    - Implement to pass tests (GREEN)
    - Refactor (IMPROVE)
    - Verify 80%+ coverage
+   - テストは `make test` 経由で実行すること（`cargo test` の直接実行は禁止）
 
 3. **Code Review**
    - Use **code-reviewer** agent immediately after writing code
    - Address CRITICAL and HIGH issues
    - Fix MEDIUM issues when possible
 
-4. **Commit & Push**
+4. **Build & Check**
+   - 変更内容に応じて適切な `make` コマンドを使用する：
+
+   ```bash
+   make check-be    # Rust（バックエンド）のみ編集時
+   make check-fe    # フロントエンドのみ編集時
+   make check-all   # 両方編集時
+   make test        # テスト実行
+   ```
+
+5. **Commit & Push**
    - Detailed commit messages
    - Follow conventional commits format
    - See [git-workflow.md](./git-workflow.md) for commit message format and PR process
 
-5. **Pre-Review Checks**
+6. **Pre-Review Checks**
    - Verify all automated checks (CI/CD) are passing
    - Resolve any merge conflicts
    - Ensure branch is up to date with target branch

@@ -1,5 +1,21 @@
 # Testing Requirements
 
+## 最優先ルール: Makefile 経由のテスト実行
+
+Makefile が存在するプロジェクトでは、テストは必ず `make` 経由で実行すること。
+`cargo test` や `npm test` 等の生コマンドは Makefile が参照できない特殊な状況でのみ使用する。
+
+```bash
+# 推奨（Makefile 経由）
+make test
+
+# 許可されない状況以外では禁止
+cargo test    # ← Makefile がある場合は使用禁止
+```
+
+Makefile はネイティブライブラリのビルド依存や環境変数の設定を抽象化している。
+生コマンドを使うとこれらの前提が満たされず、テストが失敗する。
+
 ## Minimum Test Coverage: 80%
 
 Test Types (ALL required):

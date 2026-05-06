@@ -138,15 +138,47 @@ cargo llvm-cov --html                # HTML report
 cargo llvm-cov --fail-under-lines 80 # Fail if below threshold
 ```
 
-## Testing Commands
+## Testing Commands (MYCUTE)
+
+MYCUTE プロジェクトでは Makefile が存在するため、テストは必ず `make` 経由で実行する：
 
 ```bash
-cargo test                       # Run all tests
-cargo test -- --nocapture        # Show println output
-cargo test test_name             # Run tests matching pattern
-cargo test --lib                 # Unit tests only
-cargo test --test api_test       # Specific integration test (tests/api_test.rs)
-cargo test --doc                 # Doc tests only
+# 全テスト実行（推奨）
+make test
+
+# 特定パッケージのテスト
+make test TEST_ARGS="--package mycute-server-core --lib"
+
+# 全テスト（明示的）
+make test-all
+```
+
+Makefile が参照できない特殊な状況でのみ、直接 `cargo test` を使用すること。
+
+## MYCUTE テスト注意点
+
+- **ネイティブライブラリ依存**: テスト実行前に `make test` は自動的にネイティブライブラリ（Swift SpeechHelper, onnxruntime, sherpa-onnx）のビルド依存を解決する。`cargo test` を直接実行した場合、これらのリンクに失敗する可能性がある
+- **テストの配置**:
+  - Unit tests: 各モジュール内の `#[cfg(test)] mod tests`
+  - Integration tests: `tests/` ディレクトリ
+- **テストコードでも `unwrap()` を避けること**: テスト関数は `Result<()>` を返し `?` 演算子でエラー伝播すること。パニック依存のテストは極小に留める
+- **非同期テスト**: `#[tokio::test]` を使用する。MYCUTE は Tokio ランタイムで動作する
+
+```rust
+// GOOD: Result を返すテスト
+#[tokio::test]
+async fn test_find_user() -> Result<(), DbErr> {
+    let user = find_user_by_id(42).await?;
+    assert_eq!(user.name, "Alice");
+    Ok(())
+}
+
+// BAD: unwrap に依存するテスト
+#[tokio::test]
+async fn test_find_user_bad() {
+    let user = find_user_by_id(42).await.unwrap();
+    assert_eq!(user.name, "Alice");
+}
 ```
 
 ## References
