@@ -1,28 +1,20 @@
 {
-  "name": "everything-claude-code",
-  "version": "2.0.0-rc.1",
-  "description": "Battle-tested Claude Code plugin for engineering teams — 48 agents, 182 skills, 68 legacy command shims, production-ready hooks, and selective install workflows evolved through continuous real-world use",
+  "name": "ecc-mycute",
+  "version": "0.1.0",
+  "description": "MYCUTE-optimized Claude Code plugin derived from everything-claude-code",
   "author": {
-    "name": "Affaan Mustafa",
-    "url": "https://x.com/affaanmustafa"
+    "name": "Toshimi Kawata"
   },
-  "homepage": "https://ecc.tools",
-  "repository": "https://github.com/affaan-m/everything-claude-code",
+  "repository": "https://github.com/t-kawata/ecc-mycute",
   "license": "MIT",
   "keywords": [
     "claude-code",
+    "mycute",
     "agents",
     "skills",
     "hooks",
     "rules",
-    "tdd",
-    "code-review",
-    "security",
-    "workflow",
-    "automation",
-    "best-practices"
-  ],
-  "mcpServers": {},
-  "skills": ["./skills/"],
-  "commands": ["./commands/"]
+    "rust",
+    "tauri"
+  ]
 }
