@@ -69,7 +69,7 @@ Flag these patterns immediately:
 
 ## Common False Positives
 
-- Environment variables in `.env.example` (not actual secrets)
+- Configuration values in config/settings files (not actual secrets)
 - Test credentials in test files (if clearly marked)
 - Public API keys (if actually meant to be public)
 - SHA256/MD5 used for checksums (not passwords)

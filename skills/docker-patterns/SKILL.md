@@ -286,8 +286,7 @@ services:
 ```
 node_modules
 .git
-.env
-.env.*
+config/local.*
 dist
 coverage
 *.log
@@ -360,5 +359,5 @@ docker network inspect <project>_default
 # Separate concerns: one process per container
 
 # BAD: Putting secrets in docker-compose.yml
-# Use .env files (gitignored) or Docker secrets
+# Use Docker secrets or config management system
 ```

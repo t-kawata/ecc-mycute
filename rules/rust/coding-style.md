@@ -194,7 +194,7 @@ std::fs::write(&path, &data).map_err(|e| Error::Io(e.to_string()))?;
 
 環境変数の直接参照（`std::env::var`）は `main_of_rt.rs` の起動時設定ブロックのみで行う。BL/Handler 層での環境変数直接呼び出しは禁止：
 
-- 新しい設定項目は `.env.example` → `.env` に追加
+- 新しい設定項目は設定用構造体（`Config`）にフィールドを追加
 - `main_of_rt.rs` の環境変数収集ブロックで読み込み
 - 設定値は `Arc<Config>` 等の引数で各コンポーネントに伝搬
 

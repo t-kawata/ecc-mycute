@@ -42,7 +42,7 @@ if (!apiKey) {
 #### Verification Steps
 - [ ] No hardcoded API keys, tokens, or passwords
 - [ ] All secrets in environment variables
-- [ ] `.env.local` in .gitignore
+- [ ] Config files with secrets in .gitignore
 - [ ] No secrets in git history
 - [ ] Production secrets in hosting platform (Vercel, Railway)
 

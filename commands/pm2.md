@@ -30,7 +30,7 @@ Auto-analyze project and generate PM2 service commands.
 | FastAPI/Flask | requirements.txt / pyproject.toml | 8000 |
 | Go | go.mod / main.go | 8080 |
 
-**Port Detection Priority**: User specified > .env > config file > scripts args > default port
+**Port Detection Priority**: User specified > config file > scripts args > default port
 
 ---
 

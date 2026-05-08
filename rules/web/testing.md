@@ -56,6 +56,8 @@ test('landing hero loads', async ({ page }) => {
 
 ### MYCUTE / Quasar 注記
 
-- フロントエンドテストは `cd web && pnpm quasar build` でビルド確認
+- 現在 MYCUTE フロントエンドにテストフレームワークは導入されていない
+- フロントエンド変更後の動作確認は `cd web && pnpm quasar build` でビルド検証
 - 開発時は `make run-web`（= `cd web && pnpm quasar dev`）でホットリロード開発サーバー起動
 - フロントエンド変更後は `make check-fe`（`make sync-frontend && make build-sdk-ts`）で変更を反映
+- テスト導入時は Quasar 推奨の Vitest + `@quasar/app-vite` のテストユーティリティを使用すること

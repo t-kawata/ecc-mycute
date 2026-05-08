@@ -2,78 +2,139 @@
 
 # Web Patterns
 
-## Component Composition
+## Vue 3 Patterns (MYCUTE)
 
-### Compound Components
+MYCUTE のフロントエンドは **Vue 3 Composition API + `<script setup>`** を標準とする。
 
-Use compound components when related UI shares state and interaction semantics:
+### コンポーネント構成
 
-```tsx
-<Tabs defaultValue="overview">
-  <Tabs.List>
-    <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-    <Tabs.Trigger value="settings">Settings</Tabs.Trigger>
-  </Tabs.List>
-  <Tabs.Content value="overview">...</Tabs.Content>
-  <Tabs.Content value="settings">...</Tabs.Content>
-</Tabs>
+#### スロットによるコンポジション
+
+Vue の slot 機構で親子間の UI バリエーションを分離する：
+
+```vue
+<template>
+  <div class="panel">
+    <header>
+      <slot name="title" />
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer v-if="$slots.footer">
+      <slot name="footer" />
+    </footer>
+  </div>
+</template>
 ```
 
-- Parent owns state
-- Children consume via context
-- Prefer this over prop drilling for complex widgets
+- 親が children として任意のマークアップを注入できる
+- 名前付きスロットで責務を明示
+- `$slots` チェックで条件付きレンダリング
 
-### Render Props / Slots
+#### Provide / Inject による依存注入
 
-- Use render props or slot patterns when behavior is shared but markup must vary
-- Keep keyboard handling, ARIA, and focus logic in the headless layer
+深くネストしたコンポーネント間の状態共有は props バケツリレーではなく provide/inject を使用する：
 
-### Container / Presentational Split
+```vue
+<!-- 祖先コンポーネント -->
+<script setup lang="ts">
+import { provide, ref } from 'vue'
 
-- Container components own data loading and side effects
-- Presentational components receive props and render UI
-- Presentational components should stay pure
+const activeTab = ref('overview')
+provide('activeTab', activeTab)
+</script>
 
-## State Management
+<!-- 子孫コンポーネント -->
+<script setup lang="ts">
+import { inject } from 'vue'
 
-Treat these separately:
+const activeTab = inject('activeTab', ref('overview'))
+</script>
+```
 
-| Concern | Tooling |
-|---------|---------|
-| Server state | TanStack Query, SWR, tRPC |
-| Client state | Zustand, Jotai, signals |
-| URL state | search params, route segments |
-| Form state | React Hook Form or equivalent |
+#### Container / Presentational 分割
 
-- Do not duplicate server state into client stores
-- Derive values instead of storing redundant computed state
+- Container（ページやビュー）がデータ取得と副作用を担当
+- Presentational（汎用コンポーネント）は props を受け取り UI を描画
+- Presentational コンポーネントは純粋に保つ
 
-## URL As State
+### 状態管理: Pinia
 
-Persist shareable state in the URL:
-- filters
-- sort order
-- pagination
-- active tab
-- search query
+MYCUTE は Pinia を唯一の状態管理ライブラリとして使用する：
 
-## Data Fetching
+```typescript
+// src/stores/main-store.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 
-### Stale-While-Revalidate
+export const useMainStore = defineStore('main', () => {
+  const count = ref(0)
+  const double = computed(() => count.value * 2)
 
-- Return cached data immediately
-- Revalidate in the background
-- Prefer existing libraries instead of rolling this by hand
+  function increment() {
+    count.value++
+  }
 
-### Optimistic Updates
+  return { count, double, increment }
+})
+```
 
-- Snapshot current state
-- Apply optimistic update
-- Roll back on failure
-- Emit visible error feedback when rolling back
+- **Server state**: バックエンドから取得したデータは `boot/axios.ts` の Axios インスタンスを介して取得し、Pinia store でキャッシュする
+- **Client state**: Pinia store で一元管理。store 間の依存は `useXxxStore()` で解決
+- **Form state**: フォームの値は Quasar の `v-model` + Pinia、またはローカル ref で管理
+- サーバー状態を重複して保持しない（必要な都度 Axios で取得し store でキャッシュ）
 
-### Parallel Loading
+### URL 状態
 
-- Fetch independent data in parallel
-- Avoid parent-child request waterfalls
-- Prefetch likely next routes or states when justified
+Vue Router で管理：
+
+```typescript
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+
+// クエリパラメータの取得
+const tab = route.query.tab as string | undefined
+
+// クエリパラメータの更新
+router.push({ query: { ...route.query, tab: 'settings' } })
+```
+
+永続化すべき UI 状態（フィルター、ソート、ページネーション、アクティブタブ、検索クエリ）は URL に保持する。
+
+### データ取得 (Axios)
+
+MYCUTE は `boot/axios.ts` で設定された Axios インスタンスを介してバックエンドと通信する：
+
+```typescript
+import { api } from 'boot/axios'
+import { useMainStore } from 'stores/main-store'
+
+// 取得 → store でキャッシュ
+async function fetchUsers() {
+  const store = useMainStore()
+  const res = await api.get('/v1/users')
+  store.setUsers(res.data)
+}
+
+// 楽観的更新 (Optimistic Update)
+async function toggleLike(postId: string) {
+  const store = useMainStore()
+  const prev = store.likes
+  store.addOptimisticLike(postId) // 先に UI 更新
+  try {
+    await api.post(`/v1/posts/${postId}/like`)
+  } catch {
+    store.restoreLikes(prev) // 失敗時にロールバック
+    $q.notify({ type: 'negative', message: 'いいねに失敗しました' })
+  }
+}
+```
+
+### 非同期処理パターン
+
+- 独立した複数のリクエストは `Promise.all` で並列実行
+- ページ遷移前に次の画面のデータを先読みする場合は `swr` パターンを Pinia store に実装する
+- ローディング状態は `ref(false)` + Quasar の `$q.loading` / `q-inner-loading` で表示

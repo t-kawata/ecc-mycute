@@ -6,9 +6,9 @@
 
 Prefer project-local tooling. Do not wire hooks to remote one-off package execution.
 
-### Format on Save
+### Build Verification
 
-Use the project's existing formatter entrypoint after edits:
+Quasar プロジェクトではビルドによる検証が最も確実：
 
 ```json
 {
@@ -16,17 +16,16 @@ Use the project's existing formatter entrypoint after edits:
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "pnpm prettier --write \"$FILE_PATH\"",
-        "description": "Format edited frontend files"
+        "glob": "web/**",
+        "command": "cd web && pnpm quasar build",
+        "description": "Verify Quasar build after frontend edits"
       }
     ]
   }
 }
 ```
 
-Equivalent local commands via `yarn prettier` or `npm exec prettier --` are fine when they use repo-owned dependencies.
-
-### Lint Check
+### Type Check (if vue-tsc available)
 
 ```json
 {
@@ -34,40 +33,9 @@ Equivalent local commands via `yarn prettier` or `npm exec prettier --` are fine
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "pnpm eslint --fix \"$FILE_PATH\"",
-        "description": "Run ESLint on edited frontend files"
-      }
-    ]
-  }
-}
-```
-
-### Type Check
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "command": "pnpm tsc --noEmit --pretty false",
-        "description": "Type-check after frontend edits"
-      }
-    ]
-  }
-}
-```
-
-### CSS Lint
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "command": "pnpm stylelint --fix \"$FILE_PATH\"",
-        "description": "Lint edited stylesheets"
+        "glob": "web/src/**/*.{ts,vue}",
+        "command": "cd web && pnpm vue-tsc --noEmit",
+        "description": "Type-check Vue/TS files"
       }
     ]
   }
@@ -103,18 +71,16 @@ Block oversized writes from tool input content, not from a file that may not exi
   "hooks": {
     "Stop": [
       {
-        "command": "pnpm build",
-        "description": "Verify the production build at session end"
+        "command": "cd web && pnpm quasar build",
+        "description": "Verify the Quasar production build at session end"
       }
     ]
   }
 }
 ```
 
-## Ordering
+## Ordering (MYCUTE)
 
-Recommended order:
-1. format
-2. lint
-3. type check
-4. build verification
+推奨順序（利用可能なツールに応じて）:
+1. type check (`vue-tsc --noEmit`)
+2. build verification (`quasar build`)

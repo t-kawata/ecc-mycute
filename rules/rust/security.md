@@ -11,7 +11,7 @@ paths:
 - Never hardcode API keys, tokens, or credentials in source code
 - Use environment variables: `std::env::var("API_KEY")`
 - Fail fast if required secrets are missing at startup
-- Keep `.env` files in `.gitignore`
+- 設定値は設定管理システム（SQLiteベース）で一元管理
 
 ```rust
 // BAD

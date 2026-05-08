@@ -665,7 +665,7 @@ git commit -m "fix bug"
 # GOOD: Use feature branches and PRs
 
 # BAD: Committing secrets
-git add .env  # Contains API keys
+git add config/secrets.json  # Contains credentials
 
 # GOOD: Add to .gitignore, use environment variables
 

@@ -10,27 +10,24 @@ Organize by feature or surface area, not by file type:
 src/
 ├── components/
 │   ├── hero/
-│   │   ├── Hero.tsx
-│   │   ├── HeroVisual.tsx
-│   │   └── hero.css
-│   ├── scrolly-section/
-│   │   ├── ScrollySection.tsx
-│   │   ├── StickyVisual.tsx
-│   │   └── scrolly.css
+│   │   ├── Hero.vue
+│   │   ├── HeroVisual.vue
+│   │   └── hero.scss
+│   ├── panels/
+│   │   └── settings/
+│   │       └── SettingsPanel.vue
 │   └── ui/
-│       ├── Button.tsx
-│       ├── SurfaceCard.tsx
-│       └── AnimatedText.tsx
-├── hooks/
-│   ├── useReducedMotion.ts
-│   └── useScrollProgress.ts
-├── lib/
-│   ├── animation.ts
-│   └── color.ts
-└── styles/
-    ├── tokens.css
-    ├── typography.css
-    └── global.css
+│       ├── BaseButton.vue
+│       └── SurfaceCard.vue
+├── stores/
+│   ├── main-store.ts
+│   └── llm-store.ts
+├── utils/
+│   ├── api.ts
+│   └── notify.ts
+└── css/
+    ├── quasar.variables.scss
+    └── app.scss
 ```
 
 ## CSS Custom Properties
