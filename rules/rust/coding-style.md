@@ -146,6 +146,73 @@ src/
 - Only mark `pub` what is part of the crate's public API
 - Re-export public API from `lib.rs`
 
+## 可読性とは翻訳可能性である（Readability as Translatability）
+
+Rust は式指向の言語であり、関数やクロージャ、イテレータチェインを用いて処理の流れを宣言的に記述できる。この性質を活かし、**コードが日本語や英語の文章として読めること**を最優先する。
+
+```rust
+// ❌ 翻訳不可能: 何をしているか一目でわからない
+fn h(v: &[u8], n: &str) -> String {
+    let mut r = String::new();
+    for b in v.iter().take(8) {
+        r.push_str(&format!("{:02x}", b));
+    }
+    r.push(':');
+    r.push_str(n);
+    r
+}
+
+// ✅ 翻訳可能: 関数名と構造が語る
+fn format_device_id(mac_bytes: &[u8], device_name: &str) -> String {
+    let mac_hex = mac_bytes_to_hex(mac_bytes);
+    format!("{mac_hex}:{device_name}")
+}
+
+fn mac_bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter()
+        .take(8)
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join("")
+}
+```
+
+### 翻訳可能性を高める具体的なプラクティス
+
+- **イテレータチェインは「〜をフィルターして、〜に変換して、集める」という日本語の流れとして読める**: 長すぎる場合は中間変数で段落を区切る
+- **`if let Some(x) = ...` は「もし〜があれば、〜する」という条件節として読める**: `if x.is_some()` ＋ `unwrap()` の組み合わせより翻訳可能性が高い
+- **enum と match の組み合わせは「〜の場合は〜し、〜の場合は〜する」という場合分けの文章として読める**: 早期リターンと組み合わせて自然言語の条件節に近づける
+- **型エイリアスや newtype パターンはドメインの名詞をコードに導入する手段**: 生の `String` ではなく `UserId(String)` を使うことで「ユーザーID」という概念をコードに登場させる
+
+```rust
+// 翻訳可能性の高い Rust コードの例:
+fn dispatch_command(state: &AppState, cmd: Command) -> Result<Response, Error> {
+    // 「コマンドの種類に応じて分岐し、それぞれに適した処理を実行する」
+    match cmd {
+        Command::Query { table, id } => {
+            let record = state.database.find_record(table, id)?;
+            Ok(Response::Record(record))
+        }
+        Command::Insert { table, data } => {
+            state.database.validate_schema(&table, &data)?;
+            let id = state.database.insert_record(table, data)?;
+            Ok(Response::Inserted { id })
+        }
+        Command::Delete { table, id } => {
+            state.database.verify_record_exists(table, id)?;
+            state.database.delete_record(table, id)?;
+            Ok(Response::Deleted)
+        }
+    }
+}
+```
+
+### コメントとの役割分担
+
+- コード（関数名・変数名・構造）→ **「何をしているか」** を語る。コメントなしで翻訳可能であること
+- コメント（日本語）→ **「なぜこの設計を選んだか」「どのような制約があるか」** を説明する
+- 翻訳可能性の低いコードをコメントで補おうとしてはならない。コード自体を改善するのが唯一の正しい方法
+
 ## MYCUTE-Specific Prohibitions
 
 ### Result 伝播の徹底（防弾設計）
