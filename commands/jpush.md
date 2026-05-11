@@ -86,15 +86,9 @@ fix: ユーザー名に特殊文字を含む場合の認証エラーを修正
 - **影響範囲**: 認証モジュールのsanitize処理のみ。既存の正常なユーザー名には影響しない
 ```
 
-### Step 4: make push を実行
+### Step 4: リリースノートを生成
 
-```bash
-PUSH_MSG="<生成したコミットメッセージ>" make push
-```
-
-### Step 5: リリースノートを生成
-
-コミットした内容をもとに、MYCUTE プロジェクトのリリースノートを英語で生成する。
+Step 2 の分析結果をもとに、MYCUTE プロジェクトのリリースノートを英語で生成する。
 
 ```bash
 # MYCUTE プロジェクトのルートにあるバージョン定義を確認
@@ -128,7 +122,24 @@ grep 'MYCUTE_VERSION' ~/shyme/mycute/src/constants.rs
 - ファイル名は `v` から始め、バージョン番号 + `.md`（例: `v0.24.41.md`）
 - 書き出す前に既に同名ファイルが存在する場合は上書きしてよい
 
-### Step 6: 結果報告
+### Step 5: リリースノートを MYCUTE リポジトリにコミット＆プッシュ
+
+生成したリリースノートを MYCUTE プロジェクトのリポジトリにコミットし、プッシュする。
+
+```bash
+cd ~/shyme/mycute
+git add release-notes/
+git commit -m "docs: add release notes for <バージョン>"
+git push origin master
+```
+
+### Step 6: ecc-mycute の変更をコミット＆プッシュ
+
+```bash
+PUSH_MSG="<Step 3 で生成したコミットメッセージ>" make push
+```
+
+### Step 7: 結果報告
 
 実行結果を報告する。失敗した場合はエラー内容を表示して終了。
 
