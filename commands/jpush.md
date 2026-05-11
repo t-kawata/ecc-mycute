@@ -91,14 +91,14 @@ fix: ユーザー名に特殊文字を含む場合の認証エラーを修正
 Step 2 の分析結果をもとに、MYCUTE プロジェクトのリリースノートを英語で生成する。
 
 ```bash
-# MYCUTE プロジェクトのルートにあるバージョン定義を確認
-grep 'MYCUTE_VERSION' ~/shyme/mycute/src/constants.rs
+# MYCUTE プロジェクトの次のバージョン番号を取得
+cd ~/shyme/mycute && make next-version
 ```
 
 手順:
-1. `~/shyme/mycute/src/constants.rs` から `MYCUTE_VERSION` の値を抽出する（例: `"v0.24.41"`）
+1. `cd ~/shyme/mycute && make next-version` を実行し、次のバージョン番号を取得する（例: `v0.24.42`）
 2. `~/shyme/mycute/release-notes/` ディレクトリが存在しない場合は作成する
-3. `~/shyme/mycute/release-notes/<バージョン>.md` にリリースノートを書き出す（例: `v0.24.41.md`）
+3. `~/shyme/mycute/release-notes/<バージョン>.md` にリリースノートを書き出す（例: `v0.24.42.md`）
 
 リリースノートのフォーマット:
 
