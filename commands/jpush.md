@@ -92,7 +92,43 @@ fix: ユーザー名に特殊文字を含む場合の認証エラーを修正
 PUSH_MSG="<生成したコミットメッセージ>" make push
 ```
 
-### Step 5: 結果報告
+### Step 5: リリースノートを生成
+
+コミットした内容をもとに、MYCUTE プロジェクトのリリースノートを英語で生成する。
+
+```bash
+# MYCUTE プロジェクトのルートにあるバージョン定義を確認
+grep 'MYCUTE_VERSION' ~/shyme/mycute/src/constants.rs
+```
+
+手順:
+1. `~/shyme/mycute/src/constants.rs` から `MYCUTE_VERSION` の値を抽出する（例: `"v0.24.41"`）
+2. `~/shyme/mycute/release-notes/` ディレクトリが存在しない場合は作成する
+3. `~/shyme/mycute/release-notes/<バージョン>.md` にリリースノートを書き出す（例: `v0.24.41.md`）
+
+リリースノートのフォーマット:
+
+```markdown
+# Release v<version>
+
+## Summary
+<英語で変更の概要を1〜2文>
+
+## What's Changed
+<GitHub Releases に記載する形式で変更点を英語で箇条書き>
+- <新機能>
+- <バグ修正>
+- <リファクタリング／改善>
+```
+
+**内容生成のルール**:
+- 言語は **英語**（GitHub の国際的な公開リリースノートとして使用されるため）
+- 概要（Summary）は 1〜2 文で、今回のリリースの要点を伝える
+- What's Changed は Step 2 の分析結果を元に、変更の種類ごとに整理して箇条書き
+- ファイル名は `v` から始め、バージョン番号 + `.md`（例: `v0.24.41.md`）
+- 書き出す前に既に同名ファイルが存在する場合は上書きしてよい
+
+### Step 6: 結果報告
 
 実行結果を報告する。失敗した場合はエラー内容を表示して終了。
 
