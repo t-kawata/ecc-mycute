@@ -59,7 +59,13 @@ _R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
 node "$_R/scripts/tickets/create-ticket.js" "" "タイトル"
 ```
 
-出力の `ticketId`, `specPath` を保持し、Background / Scope / Acceptance Criteria をユーザーと対話して具体化する。
+出力の `ticketId`, `specPath` を保持する。その後、以下の手順でチケットを具体化する：
+
+1. **ソースコード調査**: 問題の原因や実装に必要な情報を、ソースコードの解析、grep、調査解析、解析調査用テストコードの作成、テスト実行、ログ確認などを通じて調査する。エラーメッセージやスタックトレースなど**物理的な証拠**を収集する。
+2. **証拠の記録**: 調査で得られた証拠（エラー箇所のファイル名・行番号、実際の出力、再現手順など）を spec ファイルの `## Investigation` セクションに書き込む。
+3. **仕様の具体化**: 証拠に基づいて Background / Scope / Acceptance Criteria をユーザーと対話しながら具体化する。
+
+調査結果の書き込みと仕様の具体化が完了したら、ユーザーに内容を提示して確認を求める。
 
 ### 深掘り
 
