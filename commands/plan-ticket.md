@@ -84,6 +84,8 @@ _R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
 node "$_R/scripts/tickets/read-frontmatter.js" "$ARGUMENTS"
 ```
 
+`created_at` と `updated_at` を確認し、make からどの程度時間が経過しているかを把握する。
+
 spec の本文は以下のコマンドで `specPath` を取得し、`cat` で表示する：
 
 ```bash
@@ -93,7 +95,17 @@ node "$_R/scripts/tickets/resolve-ticket.js" "$ARGUMENTS"
 
 出力された `specPath` を `cat` で表示する。
 
-### Step 4: 計画策定
+### Step 4: Investigation の再検証
+
+spec 作成時から時間が経過している場合、当時記録された Investigation セクションの物理的証拠が現在のコードベースと一致しているとは限らない。以下の観点で再検証する：
+
+- Investigation に記載されたファイルの該当行が現在も同じ内容か確認する
+- 既に修正・改善されていたり、逆に新たな問題が発生していないか grep やテスト実行で確認する
+- 検証結果に基づき、Investigation の情報を最新の状態に更新する
+
+**計画は常に現在のコードベースの状態に基づいて策定しなければならない。**
+
+### Step 5: 計画策定
 
 spec 内容をもとに以下の構造で提示する：
 
@@ -104,6 +116,6 @@ spec 内容をもとに以下の構造で提示する：
 - 物理的レビュー方法（`run-quality-checks.js` + 翻訳可能性 grep）
 - リスク
 
-### Step 5: ユーザー承認待ち
+### Step 6: ユーザー承認待ち
 
 **明示的な承認を得るまで実装に入らない。**
