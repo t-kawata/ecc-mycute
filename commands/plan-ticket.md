@@ -1,0 +1,99 @@
+---
+description: 承認済みチケットの実装計画を策定する。物理的レビュー方法を計画に含め、ユーザーの承認を得る。引数なしならチケットIDを質問する。
+---
+
+# /plan-ticket
+
+**役割**: `approved` チケットの実装計画と物理的レビュー方法の定義。
+
+## 引数の解釈
+
+- 引数なし → ユーザーに「どのチケットの計画を策定しますか？」と質問する
+- 数字 → チケットID
+
+## 必須条件
+
+チケットが `approved` ステータスであること。
+
+## Boy Scout Rule
+
+**翻訳可能性を損なっている既存コードを、スコープ内外問わず改善することを計画に含める。** 変更ファイル一覧とは別に「Boy Scout 改善（スコープ外の翻訳可能性修正）」セクションを設け、どのファイルの何を直すかを明記する。
+
+### 翻訳可能性チェック（全言語共通、grep パターンは言語に応じて選択）
+
+- 関数定義を grep し、名詞始まりの関数がないか
+- 変数宣言を grep し、1文字変数や汎用名（`data`, `info`, `tmp`）がないか
+- 4桁以上の数値リテラルが直接書かれていないか
+- デバッグ出力が残っていないか
+
+## 使用スクリプト一覧
+
+`$_R/scripts/tickets/` 配下（全スクリプトの詳細は `scripts/tickets/README.md` を参照）：
+
+| スクリプト | 引数 |
+|---|---|
+| `resolve-ticket.js` | `<id>` |
+| `check-status.js` | `<id> <status>` |
+| `read-frontmatter.js` | `<id>` |
+| `review/run-quality-checks.js` | `<files...>` |
+| `review/generate-report.js` | （stdin経由） |
+
+## ワークフロー
+
+### Step 0: 初期化
+
+```bash
+if [ ! -f ECC_MYCUTE_PLUGIN_ROOT.md ]; then
+  _R="$(node -e "process.stdout.write(process.env.CLAUDE_PLUGIN_ROOT||require('path').join(require('os').homedir(),'.claude','plugins','marketplaces','ecc-mycute-marketplace'))")"
+  echo "$_R" > ECC_MYCUTE_PLUGIN_ROOT.md
+fi
+```
+
+### Step 1: 存在確認
+
+```bash
+_R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
+node "$_R/scripts/tickets/resolve-ticket.js" "$ARGUMENTS"
+```
+
+`exists: false` → 終了。
+
+### Step 2: approved 確認
+
+```bash
+_R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
+node "$_R/scripts/tickets/check-status.js" "$ARGUMENTS" approved
+```
+
+`matches: false` → 現在のステータスを表示し「/make-ticket で先に承認を」と伝えて終了。
+
+### Step 3: spec 読み取り
+
+```bash
+_R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
+node "$_R/scripts/tickets/read-frontmatter.js" "$ARGUMENTS"
+```
+
+spec の本文は以下のコマンドで `specPath` を取得し、`cat` で表示する：
+
+```bash
+_R=$(cat ECC_MYCUTE_PLUGIN_ROOT.md)
+node "$_R/scripts/tickets/resolve-ticket.js" "$ARGUMENTS"
+```
+
+出力された `specPath` を `cat` で表示する。
+
+### Step 4: 計画策定
+
+spec 内容をもとに以下の構造で提示する：
+
+- 要件の再確認
+- 変更ファイル一覧（| ファイル | 種別 | 内容 |）
+- Boy Scout 改善（スコープ外の翻訳可能性修正）
+- 実装手順
+- 物理的レビュー方法（`run-quality-checks.js` + 翻訳可能性 grep）
+- リスク
+
+### Step 5: ユーザー承認待ち
+
+**明示的な承認を得るまで実装に入らない。** 承認後は `/start-ticket` に誘導する。
