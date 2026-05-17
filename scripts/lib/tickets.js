@@ -377,15 +377,20 @@ function parseQueueFile(queuePath) {
  * @param {string} specPath
  */
 function addToQueue(queuePath, ticketId, title, specPath) {
+  archiveExpiredEntries(queuePath, path.resolve(CFG.queueArchiveFile), CFG.archivalDays);
   const parsed = parseQueueFile(queuePath);
   if (parsed.entries.some((e) => e.ticketId === ticketId)) return;
   const createdAt = today();
-  const line = generateQueueLine(ticketId, title, specPath, false, createdAt);
+  const newLine = generateQueueLine(ticketId, title, specPath, false, createdAt);
   const header =
     parsed.headerLines.length > 0
       ? parsed.headerLines.join("\n") + "\n"
       : "# Ticket Queue\n\n";
-  fs.writeFileSync(queuePath, header + line + "\n");
+  const lines = parsed.entries.map((e) =>
+    generateQueueLine(e.ticketId, e.title, e.specPath, e.checked, e.createdAt, e.startedAt, e.completedAt)
+  );
+  lines.push(newLine);
+  fs.writeFileSync(queuePath, header + lines.join("\n") + "\n");
 }
 
 /**
